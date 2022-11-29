@@ -25,13 +25,12 @@ let tiles = {
   },
 };
 
-let tilesArr = Object.keys(tiles);
-
+let tilesNames = Object.keys(tiles);
 let beeps = Object.values(tiles).map((tile) => tile.beep);
 
 const randomTile = () => {
-  let index = Math.floor(Math.random() * tilesArr.length);
-  return tilesArr[index];
+  let index = Math.floor(Math.random() * tilesNames.length);
+  return tilesNames[index];
 };
 
 const randomBg = () => {
@@ -39,42 +38,52 @@ const randomBg = () => {
   return `rgb(${rgb.join(",")})`;
 };
 
-let bgColor = "rgb(0,0,0)";
-
-let waitingForInput = false;
+const gameState = {
+  bgColor: "rgb(0,0,0)",
+  waitingForInput:false
+}
 
 function App() {
   const [score, setScore] = useState(0);
-
   const [pattern, setPattern] = useState([]);
+  const [gameStarted, setGameStarted] = useState(false);
 
   function start(delay) {
-    let pattern = [];
-    for (let i = 0; i < 2; i++) {
-      pattern.push(randomTile());
-    }
-    setPattern(pattern);
-    flashBoxes(pattern, {
-      onComplete() {
-        console.log("done playing..");
-      },
-    });
+    setTimeout(() => {
+      let pattern = [];
+      for (let i = 0; i < 2; i++) {
+        pattern.push(randomTile());
+      }
+      setPattern(pattern);
+      flashBoxes(pattern, {
+        onComplete() {
+          console.log("done playing..");
+        },
+      });
+    }, delay);
   }
 
   useEffect(() => {
-    console.log("effect running");
-    setTimeout(() => {
-      start();
-    }, 1000);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    function _start() {
+      if (!gameStarted) {
+        start(500);
+        setGameStarted(true);
+      }
+    }
+    window.addEventListener("mousedown", _start);
 
+    return () => {
+      window.removeEventListener("mousedown", _start);
+    };
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameStarted]);
 
   function animateTile(tileId, onComplete) {
     let tile = tiles[tileId];
-    let target = `.${tileId}`;
     playBeep(tile.beep);
-
+    
+    let target = `.${tileId}`;
     anime({
       targets: target,
       duration: 400,
@@ -92,7 +101,7 @@ function App() {
           if (n < boxes.length - 1) {
             flash(n + 1);
           } else {
-            waitingForInput = true;
+            gameState.waitingForInput = true;
             onComplete?.();
           }
         });
@@ -110,7 +119,7 @@ function App() {
       targets: ".bg",
       duration: 400,
       easing: "easeInOutSine",
-      keyframes: [{ background: "rgb(255,255,255)" }, { background: bgColor }],
+      keyframes: [{ background: "rgb(255,255,255)" }, { background: gameState.bgColor }],
       loop: 3,
       complete: onComplete,
     });
@@ -135,13 +144,13 @@ function App() {
   }
 
   function changeBg({ delay = 0, onComplete }) {
-    bgColor = randomBg();
+    gameState.bgColor = randomBg();
     anime({
       targets: ".bg",
       duration: 500,
       delay: delay,
       easing: "easeInOutSine",
-      background: bgColor,
+      background: gameState.bgColor,
       complete: onComplete,
     });
   }
@@ -152,12 +161,12 @@ function App() {
   let isDone = false;
 
   function handleTileClick(tile) {
-    if (!waitingForInput) {
+    if (!gameState.waitingForInput) {
       return;
     }
 
     if (pattern[currentStep] !== tile) {
-      waitingForInput = false;
+      gameState.waitingForInput = false;
       gameOverAnimation({ onComplete: restart });
       return;
     }
@@ -166,9 +175,9 @@ function App() {
     isDone = currentStep === pattern.length;
 
     if (isDone) {
-      waitingForInput = false;
+      gameState.waitingForInput = false;
     }
-    
+
     function flashClickedTiles() {
       let tile = clickQueue.shift();
       if (tile) {
@@ -180,7 +189,6 @@ function App() {
       // no more clicks
       started = false;
       if (isDone) {
-        console.log("done>>");
         nextRound();
       }
     }
@@ -196,9 +204,7 @@ function App() {
       delay: 800,
       onComplete() {
         setScore(0);
-        setTimeout(() => {
-          start();
-        }, 800);
+        start(800);
       },
     });
   }
@@ -226,7 +232,10 @@ function App() {
         </div>
       </div>
 
-      <p className="instruction">Match the pattern by clicking on the tiles</p>
+      <div className="instruction">
+        Match the pattern by clicking on the tiles<br />
+        {gameStarted ? null : <span>tap the screen to start!</span>}
+      </div>
     </div>
   );
 }
