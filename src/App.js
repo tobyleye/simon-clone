@@ -159,6 +159,7 @@ function App() {
   let started = false;
   let currentStep = 0;
   let isDone = false;
+  let cancelAnyPendingClick = false
 
   function handleTileClick(tile) {
     if (!gameState.waitingForInput) {
@@ -167,6 +168,7 @@ function App() {
 
     if (pattern[currentStep] !== tile) {
       gameState.waitingForInput = false;
+      cancelAnyPendingClick = true
       gameOverAnimation({ onComplete: restart });
       return;
     }
@@ -180,7 +182,7 @@ function App() {
 
     function flashClickedTiles() {
       let tile = clickQueue.shift();
-      if (tile) {
+      if (tile && cancelAnyPendingClick === false) {
         animateTile(tile, () => {
           flashClickedTiles();
         });
